@@ -12,3 +12,4 @@ RUN apt-get update && apt-get install -y \
 
 # ワーキングディレクトリの設定
 WORKDIR /usr/src/app
+
