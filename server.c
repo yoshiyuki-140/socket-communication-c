@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <strings.h>
-#include <unistd.h> // close関数のためのヘッダー
+#include <unistd.h>    // close関数のためのヘッダー
 #include <arpa/inet.h> // htonl, htons関数のためのヘッダー
 
 // 文字列内の小文字を大文字に変換する関数
