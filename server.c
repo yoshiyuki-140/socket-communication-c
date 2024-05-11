@@ -1,63 +1,89 @@
+// サーバー側
+#define BUFSIZE 1000
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
+#include <ctype.h>
+#include <strings.h>
+#include <unistd.h> // close関数のためのヘッダー
+#include <arpa/inet.h> // htonl, htons関数のためのヘッダー
 
-#define PORT 8080
-#define BUFFER_SIZE 1024
+// 文字列内の小文字を大文字に変換する関数
+char *StrToUpper(char *s)
+{
+    char *t;
+    for (t = s; *t; t++)
+    {
+        *t = toupper(*t);
+    }
+    return s;
+}
 
-int main() {
-    int server_fd, new_socket;
-    struct sockaddr_in address;
-    int addrlen = sizeof(address);
-    char buffer[BUFFER_SIZE] = {0};
-    const char *hello = "Hello from server";
+int main(int argc, char const *argv[])
+{
+    int sockfd, new_sockfd;
+    socklen_t writer_len;
+    struct sockaddr_in reader_addr, writer_addr;
+    char buf[BUFSIZE];
+    int buf_len;
 
-    // ソケットの作成
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("socket failed");
-        exit(EXIT_FAILURE);
+    // ソケットの生成
+    if ((sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        perror("ERR: socket");
+        exit(1);
     }
 
-    // アドレスとポートの設定
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
+    // 通信ポート・アドレスの設定
+    bzero(&reader_addr, sizeof(reader_addr));
+    reader_addr.sin_family = PF_INET;
+    reader_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    reader_addr.sin_port = htons(8000);
 
-    // ソケットをバインド
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("bind failed");
-        close(server_fd);
-        exit(EXIT_FAILURE);
+    // ソケットにアドレスを割り当てる
+    if (bind(sockfd, (struct sockaddr *)&reader_addr, sizeof(reader_addr)) < 0)
+    {
+        perror("ERR: bind");
+        close(sockfd);
+        exit(1);
     }
 
-    // リスンを開始
-    if (listen(server_fd, 3) < 0) {
-        perror("listen failed");
-        close(server_fd);
-        exit(EXIT_FAILURE);
+    // ソケットを接続待ちモードとする
+    if (listen(sockfd, 3) < 0)
+    {
+        perror("ERR: listen");
+        close(sockfd);
+        exit(1);
     }
 
-    // クライアントの接続を受け入れ
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
-        perror("accept failed");
-        close(server_fd);
-        exit(EXIT_FAILURE);
+    // 接続要求を待つ
+    writer_len = sizeof(writer_addr);
+    if ((new_sockfd = accept(sockfd, (struct sockaddr *)&writer_addr, &writer_len)) < 0)
+    {
+        perror("ERR: accept");
+        close(sockfd);
+        exit(1);
     }
 
-    // メッセージの読み取り
-    int valread = read(new_socket, buffer, BUFFER_SIZE);
-    printf("Received message: %s\n", buffer);
-
-    // メッセージの送信
-    send(new_socket, hello, strlen(hello), 0);
-    printf("Hello message sent\n");
+    // メッセージの受信と送信
+    buf_len = read(new_sockfd, buf, BUFSIZE);
+    if (buf_len < 0)
+    {
+        perror("ERR: read");
+        close(new_sockfd);
+        close(sockfd);
+        exit(1);
+    }
+    write(1, buf, buf_len);
+    write(new_sockfd, StrToUpper(buf), buf_len);
 
     // ソケットを閉じる
-    close(new_socket);
-    close(server_fd);
+    close(new_sockfd);
+    close(sockfd);
 
     return 0;
 }
-
