@@ -1,5 +1,8 @@
-# socket-communication-c
-Socket communication in C
+# Socket communication in C
+
+This repository uses the following tools:
+- gcc
+- make
 
 ## Server Side setup
 ```bash
