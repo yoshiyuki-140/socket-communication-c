@@ -1,59 +1,51 @@
-////////////////////////////////////////////////////////////////////////////////////////
-//Linux gcc での　TCP/IP サンプルプログラム（ここからはクライアント）
-//入力されたデータをクライアントに送り，もらったデータを表示する
-//サーバープログラムを実行してからクライアントプログラムを実行して下さい
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
-#define PORT 9876 //サーバープログラムとポート番号を合わせてください
+#define PORT 8080
+#define BUFFER_SIZE 1024
 
-int main(){
-  // IP アドレス，ソケット，sockaddr_in 構造体
-  char destination[32];
-  int dstSocket;
-  struct sockaddr_in dstAddr;
+int main() {
+    int sock = 0;
+    struct sockaddr_in serv_addr;
+    char buffer[BUFFER_SIZE] = {0};
+    const char *message = "Hello from client";
 
-  //struct sockaddr_in addr;
-  struct hostent *hp;
-  char   buf[1024];
-  int    numrcv;
+    // ソケットの作成
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("Socket creation error");
+        exit(EXIT_FAILURE);
+    }
 
-  // 相手先アドレスの入力と送る文字の入力
-  printf("サーバーマシンのIPは？:");
-  scanf("%s", destination);
-  
-  //sockaddr_in 構造体のセット
-  bzero((char *)&dstAddr, sizeof(dstAddr));
-  dstAddr.sin_family = AF_INET;
-  dstAddr.sin_port = htons(PORT);
-  
-  hp = gethostbyname(destination);
-  bcopy(hp->h_addr, &dstAddr.sin_addr, hp->h_length);
+    // サーバーアドレスの設定
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
 
-  //ソケットの生成
-  dstSocket = socket(AF_INET, SOCK_STREAM, 0);
-  
-  //接続
-  if (connect(dstSocket, (struct sockaddr *)&dstAddr, sizeof(dstAddr)) < 0){
-    printf("%s に接続できませんでした\n",destination);
-    return(-1);
-  }
-  printf("%s に接続しました\n",destination);
-  printf("適当なアルファベットを入力してください\n");
-  
-  while (1){
-    scanf("%s",buf);
-    //パケットの送信
-    write(dstSocket, buf, 1024);
-    //パケットの受信
-    numrcv = read(dstSocket, buf, 1024);
-    printf("→ %s\n\n",buf);
-  }
-  close(dstSocket);
-  return(0);
+    // サーバーのIPアドレスを指定
+    if (inet_pton(AF_INET, "192.168.3.7", &serv_addr.sin_addr) <= 0) {
+        perror("Invalid address/ Address not supported");
+        exit(EXIT_FAILURE);
+    }
+
+    // サーバーに接続
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        perror("Connection failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // メッセージの送信
+    send(sock, message, strlen(message), 0);
+    printf("Message sent\n");
+
+    // メッセージの読み取り
+    int valread = read(sock, buffer, BUFFER_SIZE);
+    printf("Received message: %s\n", buffer);
+
+    // ソケットを閉じる
+    close(sock);
+
+    return 0;
 }
+

@@ -1,63 +1,63 @@
-//Linux gcc での　TCP/IP サンプルプログラム（ここからサーバー）
-//クライアントから送られてきた文字列を大文字に変換して送り返す
-//サーバープログラムを実行してからクライアントプログラムを実行して下さい
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
-#define PORT 9876 //クライアントプログラムとポート番号を合わせてください
+#define PORT 8080
+#define BUFFER_SIZE 1024
 
-int main(){
-  int i;
-  int srcSocket; //自分
-  int dstSocket; //相手
-  // sockaddr_in 構造体
-  struct sockaddr_in srcAddr;
-  struct sockaddr_in dstAddr;
-  int dstAddrSize = sizeof(dstAddr);
-  // 各種パラメータ
-  int status;
-  int numrcv;
-  char buf[1024];
+int main() {
+    int server_fd, new_socket;
+    struct sockaddr_in address;
+    int addrlen = sizeof(address);
+    char buffer[BUFFER_SIZE] = {0};
+    const char *hello = "Hello from server";
 
-  while(1){//ループで回すことによって何度でもクライアントからつなぐことができる
-    // sockaddr_in 構造体のセット
-    bzero((char *)&srcAddr, sizeof(srcAddr));
-    srcAddr.sin_port = htons(PORT);
-    srcAddr.sin_family = AF_INET;
-    srcAddr.sin_addr.s_addr = INADDR_ANY;
-    
-    // ソケットの生成（ストリーム型）
-    srcSocket = socket(AF_INET, SOCK_STREAM, 0);
-    // ソケットのバインド
-    bind(srcSocket, (struct sockaddr *)&srcAddr, sizeof(srcAddr));
-    // 接続の許可
-    listen(srcSocket, 1);
-    
-    // 接続の受付け
-    printf("接続を待っています\nクライアントプログラムを動かして下さい\n");
-    dstSocket = accept(srcSocket, (struct sockaddr *)&dstAddr, &dstAddrSize);
-    printf("接続を受けました\n");
-    close(srcSocket);
-        
-    while(1){
-      //パケットの受信
-      numrcv = read(dstSocket, buf, 1024);
-      if(numrcv ==0 || numrcv ==-1 ){
-	close(dstSocket); break;
-      }
-      printf("変換前 %s",buf);
-      for (i=0; i< numrcv; i++){ // bufの中の小文字を大文字に変換
-	if(isalpha(buf[i])) buf[i] = toupper(buf[i]);
-      }
-      // パケットの送信
-      write(dstSocket, buf, 1024);
-      fprintf(stdout,"→ 変換後 %s \n",buf);
+    // ソケットの作成
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
     }
-  }
-  return(0);
+
+    // アドレスとポートの設定
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(PORT);
+
+    // ソケットをバインド
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        perror("bind failed");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    // リスンを開始
+    if (listen(server_fd, 3) < 0) {
+        perror("listen failed");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    // クライアントの接続を受け入れ
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+        perror("accept failed");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    // メッセージの読み取り
+    int valread = read(new_socket, buffer, BUFFER_SIZE);
+    printf("Received message: %s\n", buffer);
+
+    // メッセージの送信
+    send(new_socket, hello, strlen(hello), 0);
+    printf("Hello message sent\n");
+
+    // ソケットを閉じる
+    close(new_socket);
+    close(server_fd);
+
+    return 0;
 }
+
